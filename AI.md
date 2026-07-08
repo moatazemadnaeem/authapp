@@ -206,6 +206,7 @@ This document outlines how AI was used to build and improve this full-stack auth
 4. **Refinement**: AI fixed hydration issues and styling problems
 5. **Security**: AI implemented HttpOnly cookie strategy
 6. **Documentation**: AI created comprehensive setup and troubleshooting guides
+7. **API Documentation (Swagger)**: AI enriched the Swagger documentation with detailed DTO properties, request/response examples, endpoint metadata, and properly configured authentication for testing.
 
 ## 10. File Structure & Key Components
 
@@ -239,3 +240,19 @@ frontend/
 │
 docker-compose.yml                   (MongoDB + Mongo Express)
 ```
+
+## 11. API Documentation Enhancements
+
+### Swagger Configuration
+- Enriched `DocumentBuilder` in `main.ts` with comprehensive API metadata, markdown descriptions for endpoints, and proper token versioning explanations.
+- Added explicit server URL (`http://localhost:3000`) to ensure the "Try it out" feature functions correctly.
+- Configured persistent authorization (`persistAuthorization: true`) to retain tokens across page reloads.
+
+### Controller & DTO Decorators
+- **DTOs (`SignupDto`, `SigninDto`)**: Decorated all fields with `@ApiProperty`, providing explicit descriptions, data formats, validation requirements, and concrete examples (e.g., `john.doe@example.com`, `Secure@123`).
+- **Controller Endpoints**: 
+  - Tagged endpoints using `@ApiTags('Auth')`.
+  - Added `@ApiOperation` for clear summary and behavior description of each endpoint.
+  - Specified expected schemas via `@ApiBody`.
+  - Configured comprehensive `@ApiResponse` blocks for both successful (200/201) and error responses (400, 401, 409), illustrating exact JSON shapes returned by the API.
+  - Attached `@ApiBearerAuth('Bearer')` on protected endpoints (like `/auth/logout`) to correctly wire up Swagger's interactive authorization.

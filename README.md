@@ -131,6 +131,7 @@ The connection uses credentials from `docker-compose.yml`:
 - ✅ **Protected Routes** - middleware redirects unauthenticated users
 - ✅ **Input Validation** - client (zod) and server (class-validator)
 - ✅ **Premium UI** - dark mode, gradients, animations, responsive design
+- ✅ **Rich API Documentation** - Fully detailed Swagger UI with schemas, example values, endpoint descriptions, and testing capabilities
 
 ## Docker Compose Commands
 
