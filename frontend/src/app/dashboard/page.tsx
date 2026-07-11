@@ -4,11 +4,16 @@ import { useAuth } from "@/hooks/use-auth";
 import { LogOut, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
 
 export default function DashboardPage() {
-  const { user, message, isLoading, logout } = useAuth();
+  const { user, message, isLoading: authLoading, logout } = useAuth();
+  
+  const { data: trpcData, isLoading: trpcLoading } = trpc.secretMessage.useQuery(undefined, {
+    enabled: !!user,
+  });
 
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
@@ -56,6 +61,21 @@ export default function DashboardPage() {
                 <div className="text-left">
                   <p className="font-medium text-zinc-100">{user?.email}</p>
                 </div>
+              </div>
+
+              {/* tRPC Example */}
+              <div className="mt-6 p-4 rounded-xl border border-blue-500/30 bg-blue-500/10 text-left">
+                <h3 className="text-sm font-semibold text-blue-400 mb-2 flex items-center">
+                  <span className="h-2 w-2 rounded-full bg-blue-500 mr-2 animate-pulse" />
+                  tRPC Response
+                </h3>
+                {trpcLoading ? (
+                  <p className="text-sm text-zinc-400">Loading protected procedure...</p>
+                ) : (
+                  <p className="text-sm text-zinc-200 font-mono break-words">
+                    {trpcData?.secret || "Failed to load tRPC data"}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>

@@ -3,7 +3,8 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-
+import * as trpcExpress from '@trpc/server/adapters/express';
+import { TrpcRouter } from './trpc/trpc.router';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -50,6 +51,15 @@ async function bootstrap() {
     },
     customSiteTitle: 'EasyGenerator Auth API Docs',
   });
+
+  const trpc = app.get(TrpcRouter);
+  app.use(
+    '/trpc',
+    trpcExpress.createExpressMiddleware({
+      router: trpc.appRouter,
+      createContext: trpc.createContext,
+    }),
+  );
 
   await app.listen(3000);
 }
