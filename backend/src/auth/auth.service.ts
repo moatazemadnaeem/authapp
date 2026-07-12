@@ -30,16 +30,16 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     // Create user
-    const user = (await this.usersService.create(
+    const user = await this.usersService.create(
       name,
       email,
       passwordHash,
-    )) as any;
+    );
 
     // Generate JWT — include tokenVersion so it can be validated on each request
     const payload = {
       email: user.email,
-      sub: user._id,
+      sub: user.id,
       tokenVersion: user.tokenVersion ?? 0,
     };
     const access_token = this.jwtService.sign(payload);
@@ -48,7 +48,7 @@ export class AuthService {
       message: 'Signup successful',
       access_token,
       user: {
-        id: user._id,
+        id: user.id,
         email: user.email,
         name: user.name,
       },
@@ -58,7 +58,7 @@ export class AuthService {
   async signin(signinDto: SigninDto) {
     const { email, password } = signinDto;
 
-    const user: any = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -70,7 +70,7 @@ export class AuthService {
 
     const payload = {
       email: user.email,
-      sub: user._id,
+      sub: user.id,
       tokenVersion: user.tokenVersion ?? 0,
     };
     const access_token = this.jwtService.sign(payload);
@@ -79,7 +79,7 @@ export class AuthService {
       message: 'Signin successful',
       access_token,
       user: {
-        id: user._id,
+        id: user.id,
         email: user.email,
         name: user.name,
       },

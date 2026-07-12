@@ -32,7 +32,7 @@ describe('AuthService', () => {
   });
 
   it('increments the token version when a user logs out', async () => {
-    usersService.incrementTokenVersion.mockResolvedValue({ _id: 'user-id' });
+    usersService.incrementTokenVersion.mockResolvedValue({ id: 'user-id' });
 
     const result = await service.logout('user-id');
 
