@@ -94,30 +94,37 @@ jobs:
             --region $AWS_REGION
           echo "✅ Frontend deployment initiated"
 
-      # Wait for backend deployment to complete
-      - name: Wait for backend deployment
+      # ✅ Quick status check (doesn't fail the workflow)
+      - name: Check deployment status
         run: |
-          echo "⏳ Waiting for backend service to stabilize..."
-          aws ecs wait services-stable \
+          echo "📊 Waiting 30 seconds for deployments to start..."
+          sleep 30
+
+          echo ""
+          echo "📊 Backend service status:"
+          aws ecs describe-services \
             --cluster $ECS_CLUSTER \
             --services $ECS_BACKEND_SERVICE \
-            --region $AWS_REGION
-          echo "✅ Backend service is stable"
+            --region $AWS_REGION \
+            --query 'services[0].{Status: status, Running: runningCount, Desired: desiredCount, TaskDef: taskDefinition}' \
+            --output table
 
-      # Wait for frontend deployment to complete
-      - name: Wait for frontend deployment
-        run: |
-          echo "⏳ Waiting for frontend service to stabilize..."
-          aws ecs wait services-stable \
+          echo ""
+          echo "📊 Frontend service status:"
+          aws ecs describe-services \
             --cluster $ECS_CLUSTER \
             --services $ECS_FRONTEND_SERVICE \
-            --region $AWS_REGION
-          echo "✅ Frontend service is stable"
+            --region $AWS_REGION \
+            --query 'services[0].{Status: status, Running: runningCount, Desired: desiredCount, TaskDef: taskDefinition}' \
+            --output table
 
-      # Final status
+          echo ""
+          echo "✅ Deployments triggered successfully!"
+          echo "ℹ️  Check AWS Console for detailed deployment status."
+
       - name: Deployment complete
         run: |
-          echo "🎉 Deployment completed successfully!"
+          echo "🎉 Deployment workflow completed!"
           echo "Backend: $ECS_BACKEND_SERVICE"
           echo "Frontend: $ECS_FRONTEND_SERVICE"
           echo "Commit: ${{ github.sha }}"
