@@ -40,16 +40,10 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Get AWS role ARN from Secrets Manager (or use GitHub Secret)
-      - name: Get AWS Role ARN from Secrets Manager
-        id: get-role
+      - name: Debug AWS identity
         run: |
-          ROLE_ARN=$(aws secretsmanager get-secret-value \
-            --secret-id prod/moatazemadnaeem/authapp-role-arn-github \
-            --region ${{ env.AWS_REGION }} \
-            --query SecretString \
-            --output text)
-          echo "ROLE_ARN=$ROLE_ARN" >> $GITHUB_OUTPUT
+          echo "✅ Successfully authenticated to AWS"
+          aws sts get-caller-identity
 
       - name: Login to Amazon ECR
         id: login-ecr
