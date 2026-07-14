@@ -37,16 +37,7 @@
           "name": "JWT_SECRET",
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:651592873840:secret:prod/moatazemadnaeem/authapp-secrets-I1gTRL:JWT_SECRET::"
         }
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/myapp-backend",
-          "awslogs-region": "eu-north-1",
-          "awslogs-stream-prefix": "backend",
-          "awslogs-create-group": "true"
-        }
-      }
+      ]
     }
   ]
 }
