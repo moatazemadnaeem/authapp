@@ -12,13 +12,13 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: eu-north-1
-  ECR_REGISTRY: 651592873840.dkr.ecr.eu-north-1.amazonaws.com
-  ECS_CLUSTER: default
-  ECS_BACKEND_SERVICE: authapp-backend-6c24
-  ECS_FRONTEND_SERVICE: authapp-frontend-9bec
-  BACKEND_ECR_REPO: moatazemadnaeem/authapp-backend
-  FRONTEND_ECR_REPO: moatazemadnaeem/authapp-frontend
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
+  ECS_BACKEND_SERVICE: ${{ secrets.ECS_BACKEND_SERVICE }}
+  ECS_FRONTEND_SERVICE: ${{ secrets.ECS_FRONTEND_SERVICE }}
+  BACKEND_ECR_REPO: ${{ secrets.BACKEND_ECR_REPO }}
+  FRONTEND_ECR_REPO: ${{ secrets.FRONTEND_ECR_REPO }}
 
 jobs:
   build-and-deploy:
@@ -32,12 +32,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      # Configure AWS credentials using OIDC
 
+      # Configure AWS credentials using OIDC
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: ${{ steps.get-role.outputs.ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       # Get AWS role ARN from Secrets Manager (or use GitHub Secret)
