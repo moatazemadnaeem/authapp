@@ -1,0 +1,27 @@
+{
+  "family": "myapp-frontend",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "frontend",
+      "image": "651592873840.dkr.ecr.eu-north-1.amazonaws.com/moatazemadnaeem/authapp-frontend:latest",
+      "memory": 512,
+      "cpu": 256,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "NEXT_PUBLIC_API_URL",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:651592873840:secret:prod/moatazemadnaeem/authapp-secrets-I1gTRL:NEXT_PUBLIC_API_URL::"
+        }
+      ]
+    }
+  ],
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512"
+}

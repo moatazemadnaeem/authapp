@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  # ============================================
+  # LOCAL POSTGRESQL DATABASE (for development)
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: app-postgres-dev
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: app_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d app_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================
+  # BACKEND SERVICE (NestJS)
+  # ============================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: app-backend-dev
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://appuser:${DB_PASSWORD}@postgres:5432/app_db
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      SALT_ROUNDS: ${SALT_ROUNDS:-10}
+    volumes:
+      - ./backend:/app # Mount code for hot-reload
+      - /app/node_modules # Keep container's node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ============================================
+  # FRONTEND SERVICE (Next.js)
+  # ============================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: app-frontend-dev
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    volumes:
+      - ./frontend:/app # Mount code for hot-reload
+      - /app/node_modules # Keep container's node_modules
+      - /app/.next # Keep container's .next build
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
