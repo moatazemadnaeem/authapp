@@ -1,0 +1,127 @@
+name: Build and Deploy to ECS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [closed] # ← Triggers when PR is merged
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-north-1
+  ECR_REGISTRY: 651592873840.dkr.ecr.eu-north-1.amazonaws.com
+  ECS_CLUSTER: default
+  ECS_BACKEND_SERVICE: authapp-backend-6c24
+  ECS_FRONTEND_SERVICE: authapp-frontend-9bec
+  BACKEND_ECR_REPO: moatazemadnaeem/authapp-backend
+  FRONTEND_ECR_REPO: moatazemadnaeem/authapp-frontend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    # Only run if PR is merged (not just closed)
+    if: |
+      github.event_name != 'pull_request' || 
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Get AWS role ARN from Secrets Manager (or use GitHub Secret)
+      - name: Get AWS Role ARN from Secrets Manager
+        id: get-role
+        run: |
+          ROLE_ARN=$(aws secretsmanager get-secret-value \
+            --secret-id prod/moatazemadnaeem/authapp-role-arn-github \
+            --region ${{ env.AWS_REGION }} \
+            --query SecretString \
+            --output text)
+          echo "ROLE_ARN=$ROLE_ARN" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ steps.get-role.outputs.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # Backend Build & Push
+      - name: Build and push backend image
+        env:
+          ECR_REPOSITORY: ${{ env.BACKEND_ECR_REPO }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./backend
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "✅ Backend image pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      # Frontend Build & Push
+      - name: Build and push frontend image
+        env:
+          ECR_REPOSITORY: ${{ env.FRONTEND_ECR_REPO }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./frontend
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "✅ Frontend image pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      # Deploy Backend to ECS
+      - name: Deploy backend to ECS
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_BACKEND_SERVICE \
+            --force-new-deployment \
+            --region $AWS_REGION
+          echo "✅ Backend deployment initiated"
+
+      # Deploy Frontend to ECS
+      - name: Deploy frontend to ECS
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_FRONTEND_SERVICE \
+            --force-new-deployment \
+            --region $AWS_REGION
+          echo "✅ Frontend deployment initiated"
+
+      # Wait for backend deployment to complete
+      - name: Wait for backend deployment
+        run: |
+          echo "⏳ Waiting for backend service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_BACKEND_SERVICE \
+            --region $AWS_REGION
+          echo "✅ Backend service is stable"
+
+      # Wait for frontend deployment to complete
+      - name: Wait for frontend deployment
+        run: |
+          echo "⏳ Waiting for frontend service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_FRONTEND_SERVICE \
+            --region $AWS_REGION
+          echo "✅ Frontend service is stable"
+
+      # Final status
+      - name: Deployment complete
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "Backend: $ECS_BACKEND_SERVICE"
+          echo "Frontend: $ECS_FRONTEND_SERVICE"
+          echo "Commit: ${{ github.sha }}"
