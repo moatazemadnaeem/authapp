@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
     types: [closed] # ← Triggers when PR is merged
+  workflow_dispatch: # ← ADD THIS for manual trigger
 
 permissions:
   id-token: write
