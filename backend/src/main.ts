@@ -28,7 +28,7 @@ async function bootstrap() {
     .setTitle('EasyGenerator Auth API')
     .setDescription(`Full-stack authentication API.`)
     .setVersion('1.0')
-    .addServer('http://localhost:3000', 'Local Development')
+    .addServer('http://localhost:3001', 'Local Development')
     .addBearerAuth(
       {
         type: 'http',
@@ -61,6 +61,6 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(3000);
+  await app.listen(3001);
 }
 bootstrap();
