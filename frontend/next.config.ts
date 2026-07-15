@@ -9,6 +9,14 @@ const nextConfig = {
     // Also ignore ESLint errors during build
     ignoreDuringBuilds: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://backend-api.auth-namespace:3001/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
