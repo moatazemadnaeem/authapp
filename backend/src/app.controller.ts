@@ -6,6 +6,11 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  @Get()
+  getRoot() {
+    return { status: 'ok', service: 'authapp-backend' };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('welcome')
   getWelcomeMessage(@Request() req) {
