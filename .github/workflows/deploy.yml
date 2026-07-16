@@ -3,10 +3,7 @@ name: Build and Deploy to ECS
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-    types: [closed] # ← Triggers when PR is merged
-  workflow_dispatch: # ← ADD THIS for manual trigger
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -15,116 +12,108 @@ permissions:
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
-  ECS_BACKEND_SERVICE: ${{ secrets.ECS_BACKEND_SERVICE }}
-  ECS_FRONTEND_SERVICE: ${{ secrets.ECS_FRONTEND_SERVICE }}
-  BACKEND_ECR_REPO: ${{ secrets.BACKEND_ECR_REPO }}
-  FRONTEND_ECR_REPO: ${{ secrets.FRONTEND_ECR_REPO }}
+  ECS_CLUSTER: default
+
+  # Backend
+  BACKEND_SERVICE: authapp-backend-6c24
+  BACKEND_TASK_DEFINITION: authapp-backend
+  BACKEND_CONTAINER_NAME: backend
+
+  # Frontend
+  FRONTEND_SERVICE: default-authapp-frontend-9bec-service-ivdeeb5y
+  FRONTEND_TASK_DEFINITION: authapp-frontend
+  FRONTEND_CONTAINER_NAME: frontend
 
 jobs:
-  build-and-deploy:
+  deploy-backend:
+    name: Deploy Backend
     runs-on: ubuntu-latest
-
-    # Only run if PR is merged (not just closed)
-    if: |
-      github.event_name != 'pull_request' || 
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # Configure AWS credentials using OIDC
-      - name: Configure AWS credentials using OIDC
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Debug AWS identity
-        run: |
-          echo "✅ Successfully authenticated to AWS"
-          aws sts get-caller-identity
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      # Backend Build & Push
       - name: Build and push backend image
-        env:
-          ECR_REPOSITORY: ${{ env.BACKEND_ECR_REPO }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./backend
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "✅ Backend image pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          IMAGE=$ECR_REGISTRY/${{ secrets.BACKEND_ECR_REPO }}:${{ github.sha }}
+          docker build --platform linux/amd64 -t $IMAGE ./backend
+          docker push $IMAGE
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      # Frontend Build & Push
+      - name: Download current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.BACKEND_TASK_DEFINITION }} \
+            --query taskDefinition \
+            --output json > task-definition.json
+
+      - name: Inject new image into task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.BACKEND_CONTAINER_NAME }}
+          image: ${{ env.IMAGE }}
+
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.BACKEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Build and push frontend image
-        env:
-          ECR_REPOSITORY: ${{ env.FRONTEND_ECR_REPO }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./frontend
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "✅ Frontend image pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          IMAGE=$ECR_REGISTRY/${{ secrets.FRONTEND_ECR_REPO }}:${{ github.sha }}
+          docker build --platform linux/amd64 -t $IMAGE ./frontend
+          docker push $IMAGE
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      # Deploy Backend to ECS
-      - name: Deploy backend to ECS
+      - name: Download current task definition
         run: |
-          aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_BACKEND_SERVICE \
-            --force-new-deployment \
-            --region $AWS_REGION
-          echo "✅ Backend deployment initiated"
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.FRONTEND_TASK_DEFINITION }} \
+            --query taskDefinition \
+            --output json > task-definition.json
 
-      # Deploy Frontend to ECS
-      - name: Deploy frontend to ECS
-        run: |
-          aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_FRONTEND_SERVICE \
-            --force-new-deployment \
-            --region $AWS_REGION
-          echo "✅ Frontend deployment initiated"
+      - name: Inject new image into task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.FRONTEND_CONTAINER_NAME }}
+          image: ${{ env.IMAGE }}
 
-      # ✅ Quick status check (doesn't fail the workflow)
-      - name: Check deployment status
-        run: |
-          echo "📊 Waiting 30 seconds for deployments to start..."
-          sleep 30
-
-          echo ""
-          echo "📊 Backend service status:"
-          aws ecs describe-services \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_BACKEND_SERVICE \
-            --region $AWS_REGION \
-            --query 'services[0].{Status: status, Running: runningCount, Desired: desiredCount, TaskDef: taskDefinition}' \
-            --output table
-
-          echo ""
-          echo "📊 Frontend service status:"
-          aws ecs describe-services \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_FRONTEND_SERVICE \
-            --region $AWS_REGION \
-            --query 'services[0].{Status: status, Running: runningCount, Desired: desiredCount, TaskDef: taskDefinition}' \
-            --output table
-
-          echo ""
-          echo "✅ Deployments triggered successfully!"
-          echo "ℹ️  Check AWS Console for detailed deployment status."
-
-      - name: Deployment complete
-        run: |
-          echo "🎉 Deployment workflow completed!"
-          echo "Backend: $ECS_BACKEND_SERVICE"
-          echo "Frontend: $ECS_FRONTEND_SERVICE"
-          echo "Commit: ${{ github.sha }}"
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.FRONTEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
