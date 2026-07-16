@@ -16,7 +16,7 @@ env:
 
   # Backend
   BACKEND_SERVICE: authapp-backend-6c24
-  BACKEND_TASK_DEFINITION: default-authapp-backend-6c24
+  BACKEND_TASK_DEFINITION: default-authapp-backend-c2ad
   BACKEND_CONTAINER_NAME: Main
 
   # Frontend
