@@ -13,7 +13,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://172.31.46.247:3001/:path*",
+        destination: "http://backend-api.auth-namespace:3001/:path*",
       },
     ];
   },
