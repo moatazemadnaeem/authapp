@@ -15,7 +15,7 @@ env:
   ECS_CLUSTER: default
 
   # Backend
-  BACKEND_SERVICE: authapp-backend-6c24
+  BACKEND_SERVICE: authapp-backend
   BACKEND_TASK_DEFINITION: default-authapp-backend-c2ad
   BACKEND_CONTAINER_NAME: Main
 
