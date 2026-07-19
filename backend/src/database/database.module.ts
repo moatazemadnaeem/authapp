@@ -12,7 +12,12 @@ export const DRIZZLE = 'DRIZZLE';
       provide: DRIZZLE,
       useFactory: () => {
         const pool = new Pool({
-          connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/auth_db',
+          connectionString:
+            process.env.DATABASE_URL ||
+            'postgresql://postgres:password@localhost:5432/auth_db',
+          ssl: {
+            rejectUnauthorized: false,
+          },
         });
         return drizzle(pool, { schema });
       },
