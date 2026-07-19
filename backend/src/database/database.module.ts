@@ -15,9 +15,6 @@ export const DRIZZLE = 'DRIZZLE';
           connectionString:
             process.env.DATABASE_URL ||
             'postgresql://postgres:password@localhost:5432/auth_db',
-          ssl: {
-            rejectUnauthorized: false,
-          },
         });
         return drizzle(pool, { schema });
       },
